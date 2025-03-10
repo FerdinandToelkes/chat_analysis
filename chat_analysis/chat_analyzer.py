@@ -3,9 +3,11 @@ import docx
 import re
 import logging
 import nltk
+import yaml
+
 from empath import Empath
 
-from chat_analysis.utils import get_sentiment_key_words
+from chat_analysis.utils import get_sentiment_key_words, get_chat_and_keywords_file_paths
 
 
 # Configure logging at the module level
@@ -18,29 +20,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class DocxReader:
-    """ Read in a .docx file and return paragraphs in reverse order """
-    def __init__(self, path: str):
-        self.file = docx.Document(path)
-
-    def read_paragraphs_reversed(self):
-        """ Read paragraphs in reverse order """
-        # Filter out empty paragraphs
-        paragraphs = [para.text for para in self.file.paragraphs if para.text.strip()]
-        return reversed(paragraphs)  # Returns a generator
-
 
 
 
 class ChatAnalyzer:
     """ Read in .docx file and analyze chat data """
-    def __init__(self, path: str):
-        self.file = docx.Document(path)
-        self.reader = DocxReader(path)
+    def __init__(self, chat_file_path: str, keywords_file_path: str):
+        self.file = docx.Document(chat_file_path)
         self.name_one, self.name_two = self.extract_names()
         self.chat = self.extract_conversation_parts()
         self.empath = Empath()
-        self.sentiment_key_words = get_sentiment_key_words("sentiment_key_words.txt")
+        self.sentiment_keywords = get_sentiment_key_words(keywords_file_path)
         
 
     def print_chat_file(self):
@@ -120,7 +110,7 @@ class ChatAnalyzer:
         name_changed = False
 
         logger.debug("Extracting conversation parts ...")
-        for para in self.reader.read_paragraphs_reversed():
+        for para in self._read_paragraphs_reversed():
             # Skip all unwanted text
             if para in unwanted_text:
                 continue
@@ -147,6 +137,11 @@ class ChatAnalyzer:
 
         return chat
 
+    def _read_paragraphs_reversed(self):
+        """ Read paragraphs in reverse order """
+        # Filter out empty paragraphs
+        paragraphs = [para.text for para in self.file.paragraphs if para.text.strip()]
+        return reversed(paragraphs)  # Returns a generator
 
     def _add_text_to_chat(self, chat: dict, name: str, para: str, name_changed: bool) -> dict:
         """ Append or merge text to chat based on whether the speaker changed 
@@ -204,7 +199,7 @@ class ChatAnalyzer:
         sentiment = {}
         for person in [self.name_one, self.name_two]:
             messages = " ".join(self.chat[person]) if self.chat[person] else ""
-            sentiment[person] = self.empath.analyze(messages, categories=self.sentiment_key_words, normalize=True) if messages else {}
+            sentiment[person] = self.empath.analyze(messages, categories=self.sentiment_keywords, normalize=True) if messages else {}
         return sentiment
 
 
@@ -223,13 +218,13 @@ class ChatAnalyzer:
 
 
 def main():
-    analyzer = ChatAnalyzer("ID_1.docx")
+    chat_file_path, keywords_file_path = get_chat_and_keywords_file_paths()
+    analyzer = ChatAnalyzer(chat_file_path, keywords_file_path)
     # analyzer.print_chat_file()
     print(f"Name one: {analyzer.name_one}")
     print(f"Name two: {analyzer.name_two}")
     print(f"Chat: {analyzer.chat}")
     print(analyzer.get_basic_chat_info())
-    
     #print(analyzer.get_chat_sentiment())
     
 

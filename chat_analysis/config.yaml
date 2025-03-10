@@ -1,0 +1,3 @@
+root_path: "/Users/ferdinandtolkes/private_code/chat_project"
+sentiment_keywords_file_path: "sentiment_keywords.txt"
+chat_example_file_path: "ID_1.docx"

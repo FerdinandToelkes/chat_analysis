@@ -1,11 +1,13 @@
 import unittest
 from chat_analysis.chat_analyzer import ChatAnalyzer
+from chat_analysis.utils import get_chat_and_keywords_file_paths
 
 
 class TestChatAnalyzer(unittest.TestCase):
     def setUp(self):
         """Runs before each test. Useful for setting up test data."""
-        self.analyzer = ChatAnalyzer("ID_1.docx")
+        chat_file_path, keywords_file_path = get_chat_and_keywords_file_paths()
+        self.analyzer = ChatAnalyzer(chat_file_path, keywords_file_path)
 
     def test_extract_names(self):
         """Test if names are extracted correctly"""
