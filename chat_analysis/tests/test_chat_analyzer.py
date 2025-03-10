@@ -5,7 +5,7 @@ from chat_analysis.chat_analyzer import ChatAnalyzer
 class TestChatAnalyzer(unittest.TestCase):
     def setUp(self):
         """Runs before each test. Useful for setting up test data."""
-        self.analyzer = ChatAnalyzer("Replika_Chat_Test.docx")
+        self.analyzer = ChatAnalyzer("ID_1.docx")
 
     def test_extract_names(self):
         """Test if names are extracted correctly"""
@@ -25,7 +25,10 @@ class TestChatAnalyzer(unittest.TestCase):
         self.assertIn("total_number_of_words_name_two", stats)
         self.assertIn("total_number_of_words", stats)
         # Check if these numbers match with the humanly calculated numbers
-        #TODO
+        #TODO: numbers need to updated for correct hyphen handling
+        self.assertEqual(stats["total_number_of_words_name_one"], 466)
+        self.assertEqual(stats["total_number_of_words_name_two"], 1230)
+        self.assertEqual(stats["total_number_of_words"], 1696)
 
     def test_extract_conversation_parts(self):
         """Check if conversation parts are extracted correctly"""

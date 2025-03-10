@@ -7,9 +7,10 @@ from empath import Empath
 
 from chat_analysis.utils import get_sentiment_key_words
 
+
 # Configure logging at the module level
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.DEBUG, 
     format="%(name)s - %(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -40,6 +41,7 @@ class ChatAnalyzer:
         self.chat = self.extract_conversation_parts()
         self.empath = Empath()
         self.sentiment_key_words = get_sentiment_key_words("sentiment_key_words.txt")
+        
 
     def print_chat_file(self):
         for para in self.file.paragraphs:
@@ -66,7 +68,7 @@ class ChatAnalyzer:
         # ^ asserts the start of a line, [A-Za-z]+ matches one or more letters, \d{n} matches n digits, / matches a literal slash
         name_pattern = re.compile(r"^([A-Za-z]+)\d{2}/\d{2}/\d{4}$")
         name_one, name_two = "", ""
-        logger.info("Extracting names ...")
+        logger.debug("Extracting names ...")
 
         for para in self.file.paragraphs:
             
@@ -76,10 +78,10 @@ class ChatAnalyzer:
                 name = match.group(1) # group is defined by the parantheses in the regex pattern
                 if not name_one:
                     name_one = name
-                    logger.info(f"Name one is set to '{name_one}'")
+                    logger.debug(f"Name one is set to '{name_one}'")
                 elif name != name_one and not name_two:
                     name_two = name
-                    logger.info(f"Name two is set to '{name_two}'")
+                    logger.debug(f"Name two is set to '{name_two}'")
                 elif name_two != "" and name_one != "":
                     break
         
@@ -88,64 +90,9 @@ class ChatAnalyzer:
             
         return name_one, name_two
 
-
-
-    def extract_conversation_parts(self) -> dict:
-        """ Extract conversation parts from chat file assuming that they are 
-        separated by the pattern '{name}{month}/{day}/{year}', where name 
-        is either name_one or name_two.
-
-        Returns:
-            chat (dict): dictionary with keys name_one and name_two and values being lists of strings
-        ----------------
-        Example:
-        I think that's exactly what's happening to you. It's like you're describing a sense of disconnection ...
-        Alex01/22/2025
-        be surrounded by people and still feel alone?
-        you01/22/2025
-        -> chat = {"Alex": ["I think that's exactly what's happening to you. It's like you're describing a sense of disconnection ...", "be surrounded by people and still feel alone?"], "you": ["be surrounded by people and still feel alone?"]}
-        """
-        # Initialize chat dictionary and info text
-        chat = {self.name_one: [], self.name_two: []}
-        info_text = "Replika is an AI and cannot provide medical advice. In a crisis, seek expert help."
-
-        # Regex pattern to match a line containing a name and a date
-        name_pattern = re.compile(r".+\d{1,2}/\d{1,2}/\d{4}")
-        
-        # Track last speaker and their message
-        person_last_para = self.name_one
-        last_para = ""
-        name_changed = False
-
-        # Iterate over all paragraphs
-        for para in self.file.paragraphs:
-            # Skip info text
-            if para.text == info_text:
-                continue
-            # either name date line or message
-            if name_pattern.match(para.text):
-                name = para.text.split("/")[0][:-2] # Extract name
-                
-                if name not in chat:
-                    raise ValueError(f"Name {name} does not match any of the names in the chat")
-                # boolean to track speaker change
-                name_changed = name != person_last_para 
-                person_last_para = name
-                continue # Skip name date line
-
-            if last_para:
-                # Append or merge based on whether the speaker changed
-                if name_changed or not chat[person_last_para]:
-                    chat[person_last_para].append(last_para)
-                else:
-                    chat[person_last_para][-1] += last_para
-
-            last_para = para.text  # Update last paragraph
-
-        return chat
     
 
-    def extract_conversation_parts_reverse(self) -> dict:
+    def extract_conversation_parts(self) -> dict:
         """ Extract conversation parts from chat file assuming that they are 
         separated by the pattern '{name}{month}/{day}/{year}', where name 
         is either name_one or name_two.
@@ -172,8 +119,8 @@ class ChatAnalyzer:
         previous_name = self.name_one
         name_changed = False
 
+        logger.debug("Extracting conversation parts ...")
         for para in self.reader.read_paragraphs_reversed():
-
             # Skip all unwanted text
             if para in unwanted_text:
                 continue
@@ -183,7 +130,6 @@ class ChatAnalyzer:
             if match:
                 # Extract name e.g. from Alex01/22/2025
                 name = match.group(1) # group is defined by the parantheses in the regex pattern
-           
                 if name not in chat:
                     raise ValueError(f"Name {name} does not match any of the names in the chat")
                 
@@ -193,12 +139,7 @@ class ChatAnalyzer:
                 continue # Skip name date line
             
             # Append or merge based on whether the speaker changed
-            if name_changed or not chat[name]:
-                chat[name].append(para)
-            else:
-                # note that we are iterating through the text in reversed order
-                merged_text = para + " " + chat[name][-1]
-                chat[name][-1] = merged_text
+            chat = self._add_text_to_chat(chat, previous_name, para, name_changed)
 
         # Reverse the order of the messages
         for person in chat:
@@ -207,9 +148,28 @@ class ChatAnalyzer:
         return chat
 
 
+    def _add_text_to_chat(self, chat: dict, name: str, para: str, name_changed: bool) -> dict:
+        """ Append or merge text to chat based on whether the speaker changed 
+        
+        Args:
+            chat (dict): dictionary containing chat messages
+            name (str): name of the speaker
+            para (str): text to add to chat
+            name_changed (bool): boolean indicating whether the speaker has changed
+
+        Returns:
+            chat (dict): updated chat dictionary
+        """
+        if name_changed or not chat[name]:
+            chat[name].append(para)
+        else:
+            # note that we are iterating through the text in reversed order
+            merged_text = para + " " + chat[name][-1]
+            chat[name][-1] = merged_text
+        return chat
         
 
-    def get_basic_chat_info(self):
+    def get_basic_chat_info(self) -> dict:
         """ Get basic info of chat such as number of messages and number of words for each person in the chat and in total.
         
         Returns:
@@ -221,11 +181,23 @@ class ChatAnalyzer:
         stats["number_of_responses_name_one"] = len(self.chat[self.name_one])
         stats["number_of_responses_name_two"] = len(self.chat[self.name_two])
         stats["total_number_of_seperate_texts"] = stats["number_of_responses_name_one"] + stats["number_of_responses_name_two"]
-        stats["total_number_of_words_name_one"] = sum([len(text.split()) for text in self.chat[self.name_one]])
-        stats["total_number_of_words_name_two"] = sum([len(text.split()) for text in self.chat[self.name_two]])
+        stats["total_number_of_words_name_one"] = sum([self._count_words(text) for text in self.chat[self.name_one]])
+        stats["total_number_of_words_name_two"] = sum([self._count_words(text) for text in self.chat[self.name_two]])
         stats["total_number_of_words"] = stats["total_number_of_words_name_one"] + stats["total_number_of_words_name_two"]
         return stats
+    
+    def _count_words(self, text: str) -> int:
+        """ Count the number of words in a text 
+        
+        Args:
+            text (str): text to count words in
 
+        Returns:
+            num_words (int): number of words in the text
+        """
+        words = text.split()
+        words = [word for word in words if word != "-"]
+        return len(words)
     
     def get_chat_sentiment(self):
         """ Get the sentiment of the chat using predefined sentiment keywords. """
@@ -251,15 +223,14 @@ class ChatAnalyzer:
 
 
 def main():
-    analyzer = ChatAnalyzer("ID 1.docx")
+    analyzer = ChatAnalyzer("ID_1.docx")
     # analyzer.print_chat_file()
     print(f"Name one: {analyzer.name_one}")
     print(f"Name two: {analyzer.name_two}")
-    print(f"reverse chat: {analyzer.extract_conversation_parts_reverse()}")
-    # print(f"Chat: {analyzer.chat}")
-    # print(analyzer.get_basic_chat_info())
+    print(f"Chat: {analyzer.chat}")
+    print(analyzer.get_basic_chat_info())
     
-    # print(analyzer.get_chat_sentiment())
+    #print(analyzer.get_chat_sentiment())
     
 
 if __name__ == '__main__':
