@@ -1,15 +1,9 @@
-import logging
 from chat_analysis.chat_analyzer import ChatAnalyzer
 from chat_analysis.utils import get_chat_and_keywords_file_paths
+from chat_analysis.setup_logger import setup_logger
 
-# Configure logging at the module level
-logging.basicConfig(
-    level=logging.DEBUG, 
-    format="%(name)s - %(asctime)s - %(levelname)s - %(message)s"
-)
-
-# Get the logger for this script (one logger per module)
-logger = logging.getLogger(__name__)  
+# Set up logging
+logger = setup_logger("debug")
 
 
 if __name__ == "__main__":

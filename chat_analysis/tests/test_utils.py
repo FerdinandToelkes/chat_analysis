@@ -1,6 +1,6 @@
 import unittest
 import os
-from chat_analysis.utils import get_sentiment_key_words, get_chat_and_keywords_file_paths
+from chat_analysis.utils import get_sentiment_key_words, load_config, get_chat_and_keywords_file_paths
 
 class TestUtils(unittest.TestCase):
     """Test the utility functions in utils.py"""
@@ -28,6 +28,16 @@ class TestUtils(unittest.TestCase):
         expected_keywords = ['sympathy', 'joy', 'negative_emotion', 'cheerfulness']
         result = get_sentiment_key_words(self.test_keywords_file_path)
         self.assertEqual(result, expected_keywords)
+
+    def test_load_config(self):
+        """Test if configuration file is loaded correctly"""
+        expected_config = {
+            'root_path': '/tmp',
+            'chat_example_file_path': 'chat_example.docx',
+            'sentiment_keywords_file_path': 'test_sentiment_keywords.txt'
+        }
+        result = load_config(self.test_config_file_path)
+        self.assertEqual(result, expected_config)
 
     def test_get_sentiment_key_words_file_not_found(self):
         """Test if FileNotFoundError is raised when the file is not found"""
