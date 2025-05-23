@@ -1,0 +1,1 @@
+- ssh zu anderen lokalen laptop?
