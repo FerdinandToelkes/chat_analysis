@@ -5,7 +5,6 @@ import logging
 import nltk
 import yaml
 
-from collections import defaultdict
 from empath import Empath
 
 from chat_analysis.utils import get_sentiment_key_words, get_chat_and_keywords_file_paths
@@ -13,8 +12,6 @@ from chat_analysis.setup_logger import setup_logger
 
 # Set up logging
 logger = setup_logger("debug")
-
-# example execution: python -m chat_analysis.chat_analyzer --chat_file_path chat_analysis/test_data/Personatest.txt --keywords_file_path chat_analysis/test_data/sentiment_keywords.yaml
 
 
 class ChatAnalyzer:
@@ -26,8 +23,6 @@ class ChatAnalyzer:
         self.empath = Empath()
         self.sentiment_keywords = get_sentiment_key_words(keywords_file_path)
         
-
-    
 
     def print_chat_file(self):
         for para in self.file.paragraphs:
@@ -209,77 +204,19 @@ class ChatAnalyzer:
         pass
 
 
-def parse_chat_log(file_path: str) -> dict:
-    """ 
-    Parse a chat log file to extract messages for each speaker.
-    The line containing the speaker's name follows after a message.
-    The speaker's name is followed by a timestamp in the format "at HH:MM AM/PM".
-    Args:
-        file_path (str): Path to the chat log file.
-    Returns:
-        coversation (dict): Dictionary where keys are speaker names and values are lists of messages.
-    """
-    # Dictionary to hold messages for each speaker
-    coversation = defaultdict(list)
-    current_speaker = None
 
-    # regular expression to match lines that end with a time like 10:24 AM
-    speaker_line_pattern = re.compile(r'^([A-Za-z]+) .* at \d{1,2}:\d{2} [AP]M$')
 
-    # Read the file and filter out empty lines
-    with open(file_path, 'r', encoding='utf-8') as file:
-        lines = [line.strip() for line in file if line.strip()]
-    
-    
-    for line in reversed(lines):
-        # Check if the line is a speaker line
-        match = speaker_line_pattern.match(line)
-        if match:
-            current_speaker = get_current_speeker(match)
-        elif current_speaker:
-            # Append the message to the current speaker's list
-            coversation[current_speaker].append(line)
-    # Reverse the messages for each speaker to maintain original order
-    for speaker in coversation:
-        coversation[speaker].reverse()
 
-    return coversation
-
-def get_current_speeker(match: re.Match) -> str:
-    """ 
-    Extract the current speaker from a regex match object.
-    Args:
-        match (re.Match): regex match object containing the speaker line
-    Returns:
-        current_speaker (str): name of the current speaker
-    """
-    current_speaker = match.group(1)
-    # Split the name at the first uppercase letter
-    current_speaker = re.sub(r'([a-z])([A-Z])', r'\1 \2', current_speaker)
-    # get rid of the second part of the name
-    current_speaker = current_speaker.split()[0]
-    return current_speaker
-
-def print_chat_messages(speaker_messages: dict):
-    """ 
-    Print chat messages for each speaker.
-    Args:
-        speaker_messages (dict): Dictionary where keys are speaker names and values are lists of messages.
-    """
-    for speaker, messages in speaker_messages.items():
-        print(f"\n--- {speaker} ---")
-        for i, msg in enumerate(messages):
-            print(f"{i+1}. message:\n", msg)
 
 def main():
-    chat_file: str = 'Personatest.txt'  
-    speaker_messages: dict = parse_chat_log(chat_file)
-
-    # Display messages for each speaker
-    print_chat_messages(speaker_messages)
-    print(f"speaker_messages: {speaker_messages}")
-
-   
+    chat_file_path, keywords_file_path = get_chat_and_keywords_file_paths()
+    analyzer = ChatAnalyzer(chat_file_path, keywords_file_path)
+    # analyzer.print_chat_file()
+    print(f"Name one: {analyzer.name_one}")
+    print(f"Name two: {analyzer.name_two}")
+    print(f"Chat: {analyzer.chat}")
+    print(analyzer.get_basic_chat_info())
+    #print(analyzer.get_chat_sentiment())
     
 
 if __name__ == '__main__':
